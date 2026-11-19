@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101427">
+  <title>UI Room — 共同デザインボード</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Serif+JP:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="mesh"></div>
+  <section id="authView" class="auth-shell">
+    <div class="auth-card glass-card">
+      <div class="brand-mark"><span>✦</span><div><strong>UI ROOM</strong><small>co-design in real time</small></div></div>
+      <div class="auth-copy"><p class="eyebrow">SHARED DESIGN SPACE</p><h1>みんなの決定を、<em>ひとつの景色</em>に。</h1><p>アカウントで参加して、UIの方向性・ホワイトボード・会話をリアルタイムに共有しましょう。</p></div>
+      <div class="auth-tabs"><button class="tab active" data-auth-tab="login">ログイン</button><button class="tab" data-auth-tab="signup">新規登録</button></div>
+      <form id="authForm" class="stack-form">
+        <label>名前<input id="authName" required minlength="2" maxlength="32" autocomplete="username" placeholder="例：あおい"></label>
+        <label>パスワード<input id="authPassword" required minlength="6" type="password" autocomplete="current-password" placeholder="6文字以上"></label>
+        <label id="confirmWrap" class="hidden">パスワード確認<input id="authConfirm" minlength="6" type="password" autocomplete="new-password"></label>
+        <button class="primary-button" type="submit"><span id="authSubmitText">ログインする</span><span>→</span></button>
+      </form>
+      <p class="fine-print">名前は内部で安全なメール形式に変換されます。Googleログインは使用しません。</p>
+    </div>
+  </section>
+
+  <section id="appView" class="app-shell hidden">
+    <header class="topbar glass-card">
+      <div class="brand-mark compact"><span>✦</span><div><strong>UI ROOM</strong><small id="roomCaption">ルーム未選択</small></div></div>
+      <div class="room-actions"><button id="createRoomBtn" class="ghost-button">＋ ルーム作成</button><button id="joinRoomBtn" class="ghost-button">招待コードで参加</button><button id="profileBtn" class="avatar-button">◎</button></div>
+    </header>
+    <main id="workspace" class="workspace hidden">
+      <aside class="sidebar glass-card">
+        <div class="room-heading"><div><p class="eyebrow">CURRENT ROOM</p><h2 id="roomName">—</h2></div><span id="onlineCount" class="status-pill">● 0 online</span></div>
+        <div class="invite-box"><span>招待コード</span><strong id="inviteCode">------</strong><button id="copyInviteBtn" title="招待リンクをコピー">⧉</button></div>
+        <nav class="side-nav"><button class="nav-item active" data-panel="decidePanel">◈ <span>UIを決める</span></button><button class="nav-item" data-panel="boardPanel">✎ <span>ホワイトボード</span></button><button class="nav-item" data-panel="chatPanel">◌ <span>チャット</span><b id="chatBadge" class="count-badge hidden">0</b></button></nav>
+        <div class="member-section"><div class="section-label"><span>MEMBERS</span><button id="refreshMembersBtn">↻</button></div><div id="memberList" class="member-list"></div></div>
+        <div class="sidebar-footer"><button id="myPageBtn" class="text-button">マイページ</button><button id="logoutBtn" class="text-button">ログアウト</button></div>
+      </aside>
+      <section class="content-area">
+        <div id="decidePanel" class="panel active-panel">
+          <div class="panel-head"><div><p class="eyebrow">COLLABORATIVE DIRECTION</p><h1>みんなで、見た目を決める。</h1><p class="subline">変更はリアルタイムで同期され、投票はその場で可視化されます。</p></div><button id="exportBtn" class="secondary-button">仕様をエクスポート ↗</button></div>
+          <div class="preview-layout"><div class="preview-card glass-card"><div class="preview-label"><span>LIVE PREVIEW</span><span class="live-dot">LIVE</span></div><div id="livePreview" class="site-preview"><div class="mock-nav"><strong>atelier<span>°</span></strong><span>Studio　 Journal　 Contact</span><button>Start a project</button></div><div class="mock-hero"><p class="mock-kicker">IDEAS IN MOTION</p><h2>Make room for<br><i>better ideas.</i></h2><p>Thoughtful digital experiences for brands that move with intention.</p><button>Explore our work <span>↗</span></button></div><div class="mock-cards"><div><span>01</span><strong>Strategy</strong><small>Clarity before craft.</small></div><div><span>02</span><strong>Design</strong><small>Beauty with purpose.</small></div><div><span>03</span><strong>Build</strong><small>Ideas, made real.</small></div></div></div></div>
+            <div class="controls-column"><div id="controlCards" class="control-grid"></div></div></div>
+        </div>
+        <div id="boardPanel" class="panel"><div class="panel-head"><div><p class="eyebrow">SHARED CANVAS</p><h1>考えを、線にする。</h1><p class="subline"><span id="drawingStatus">誰でも描き始められます。</span></p></div><div class="board-actions"><button id="undoBtn" class="secondary-button">↶ 取り消す</button><button id="clearBoardBtn" class="danger-button">全消去</button><button id="saveBoardBtn" class="primary-button small">PNG保存</button></div></div><div class="board-toolbar glass-card"><button class="tool active" data-tool="pen">✎ ペン</button><button class="tool" data-tool="marker">▰ マーカー</button><button class="tool" data-tool="eraser">⌫ 消しゴム</button><label>太さ <input id="brushSize" type="range" min="2" max="24" value="5"></label><input id="brushColor" type="color" value="#6d5dfc"><button id="stickyBtn" class="tool">＋ 付箋</button></div><div id="canvasWrap" class="canvas-wrap glass-card"><canvas id="boardCanvas"></canvas><div id="cursorLayer"></div></div></div>
+        <div id="chatPanel" class="panel"><div class="panel-head"><div><p class="eyebrow">ROOM CONVERSATION</p><h1>決めながら、話そう。</h1><p class="subline">チャット履歴はこのルームに保存されます。</p></div></div><div class="chat-card glass-card"><div id="chatMessages" class="chat-messages"></div><div id="typingStatus" class="typing-status"></div><form id="chatForm" class="chat-form"><input id="chatInput" maxlength="500" placeholder="メッセージを書く…" autocomplete="off"><button class="primary-button small">送信</button></form></div></div>
+      </section>
+    </main>
+    <section id="emptyState" class="empty-state glass-card"><div class="empty-orb">✦</div><p class="eyebrow">YOUR DESIGN ROOMS</p><h1>最初のルームを<br><em>つくりましょう。</em></h1><p>ルームを作成するか、招待コードで参加してください。</p><div><button id="emptyCreateBtn" class="primary-button">＋ ルームを作成</button><button id="emptyJoinBtn" class="secondary-button">招待コードで参加</button></div><div id="historyList" class="history-list"></div></section>
+  </section>
+  <div id="modalRoot"></div><div id="toast" class="toast"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

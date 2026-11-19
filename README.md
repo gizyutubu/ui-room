@@ -10,7 +10,7 @@ GitHub Pagesで公開できる、Supabase PostgreSQL + Realtime対応のリア�
 4. **Project Settings → API**からProject URLとPublishable key（または旧anon key）を確認し、`app.js` 冒頭の `supabaseUrl` と `supabaseAnonKey` に貼り付けます。`service_role` keyは絶対に貼り付けないでください。
 5. GitHub Pagesのドメインを **Authentication → URL Configuration → Redirect URLs** に追加します（例：`https://gizyutubu.github.io/ui-room/`）。
 
-このアプリはユーザーが入力した名前を英数字の内部IDに変換したメール形式（`u...@ui-room.example.com`）にしてSupabase Authのメール／パスワード認証を利用します。日本語の名前も利用できます。ルームやチャット、投票、描画データはPostgreSQLのJSONBテーブルに保存し、Supabase RealtimeのPostgres Changesで同期します。
+このアプリはユーザーが入力した名前を英数字の内部IDに変換したメール形式（`u...@ui-room.app`）にしてSupabase Authのメール／パスワード認証を利用します。日本語の名前も利用できます。ルームやチャット、投票、描画データはPostgreSQLのJSONBテーブルに保存し、Supabase RealtimeのPostgres Changesで同期します。
 
 ## GitHub Pages公開
 

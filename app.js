@@ -1,8 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Supabase DashboardのProject Settings > APIから置き換えてください。
-const supabaseUrl = 'https://YOUR_PROJECT.supabase.co';
-const supabaseAnonKey = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+const supabaseUrl = 'https://bhbtsufzrsdrmncczxrs.supabase.co';
+const supabaseAnonKey = 'sb_publishable_9qlgluEfKwZgOseIUvFjSA_uQqBpwtF';
 const configured = !supabaseUrl.includes('YOUR_') && !supabaseAnonKey.startsWith('YOUR_');
 const supabase = configured ? createClient(supabaseUrl, supabaseAnonKey) : null;
 let auth = supabase?.auth, db = supabase, user, roomId, roomData, unsubscribers=[];

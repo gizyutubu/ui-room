@@ -36,7 +36,10 @@ const controlDefs=[['theme','テーマ・質感',['Liquid Glass','Minimal Light'
 const colors=['#8d7cff','#ff6b6b','#2cbfae','#f2a93b','#ff92cf'];
 
 function handleAuth(u){ user=u; if(u){ $('#authView').classList.add('hidden');$('#appView').classList.remove('hidden'); loadHistory(); autoJoinFromUrl(); } else { $('#authView').classList.remove('hidden');$('#appView').classList.add('hidden'); } }
-function safeName(name){return encodeURIComponent(name.trim().toLowerCase()).replace(/%/g,'_').slice(0,70)}
+function safeName(name){
+  const bytes=new TextEncoder().encode(name.trim().toLowerCase());
+  return 'u'+Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,70);
+}
 function internalEmail(name){return `${safeName(name)}@ui-room.example.com`}
 function initials(name){return (name||'?').slice(0,2).toUpperCase()}
 function avatarColor(name){return colors[(name||'').length%colors.length]}

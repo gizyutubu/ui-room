@@ -6,7 +6,7 @@ GitHub Pagesで公開できる、Supabase PostgreSQL + Realtime対応のリア�
 
 1. [Supabase](https://supabase.com/dashboard)でプロジェクトを作成します。
 2. **Authentication → Providers → Email**を有効化します。メール確認を使わず、名前＋パスワードだけで利用する場合は **Confirm email** をオフにします。
-3. **SQL Editor**で、リポジトリの [`supabase-schema.sql`](./supabase-schema.sql) を全量実行します。テーブル作成、RLS、Realtime publicationを設定します。
+3. **SQL Editor**で、リポジトリの [`supabase-schema.sql`](./supabase-schema.sql) を全量実行します。テーブル作成、RLS、Realtime publicationを設定します。このSQLはポリシー重複とRealtime重複を回避するため、途中まで実行済みでも再実行できます。
 4. **Project Settings → API**からProject URLとPublishable key（または旧anon key）を確認し、`app.js` 冒頭の `supabaseUrl` と `supabaseAnonKey` に貼り付けます。`service_role` keyは絶対に貼り付けないでください。
 5. GitHub Pagesのドメインを **Authentication → URL Configuration → Redirect URLs** に追加します（例：`https://gizyutubu.github.io/ui-room/`）。
 

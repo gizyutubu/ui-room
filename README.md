@@ -2,15 +2,15 @@
 
 GitHub Pagesで公開できる、Supabase PostgreSQL + Realtime対応のリアルタイム共同UIデザイン決定・ホワイトボードアプリです。`index.html` / `style.css` / `app.js` の静的構成で、ビルドは不要です。
 
-## Supabase初期設定
+## Supabase初期設定（メール不要・名前＋パスワード）
 
 1. [Supabase](https://supabase.com/dashboard)でプロジェクトを作成します。
-2. **Authentication → Providers → Email**を有効化します。メール確認を使わず、名前＋パスワードだけで利用する場合は **Confirm email** をオフにします。
-3. **SQL Editor**で、リポジトリの [`supabase-schema.sql`](./supabase-schema.sql) を全量実行します。テーブル作成、RLS、Realtime publicationを設定します。このSQLはポリシー重複とRealtime重複を回避するため、途中まで実行済みでも再実行できます。
-4. **Project Settings → API**からProject URLとPublishable key（または旧anon key）を確認し、`app.js` 冒頭の `supabaseUrl` と `supabaseAnonKey` に貼り付けます。`service_role` keyは絶対に貼り付けないでください。
-5. GitHub Pagesのドメインを **Authentication → URL Configuration → Redirect URLs** に追加します（例：`https://gizyutubu.github.io/ui-room/`）。
+2. **SQL Editor**で、[`supabase-custom-auth.sql`](./supabase-custom-auth.sql) を実行します。名前・パスワードのユーザー表とセッション表を作成します。
+3. Supabase CLIでEdge Functionをデプロイします。`supabase functions deploy ui-room-api --no-verify-jwt` を実行してください。
+4. Edge FunctionのSecretsに `SUPABASE_SERVICE_ROLE_KEY` を設定します。これはブラウザへ絶対に置きません。
+5. これまでのSupabase AuthのEmail設定は不要です。画面の名前とパスワードだけで登録・ログインできます。
 
-このアプリはユーザーが入力した名前を英数字の内部IDに変換したメール形式（`u...@ui-room.app`）にしてSupabase Authのメール／パスワード認証を利用します。日本語の名前も利用できます。ルームやチャット、投票、描画データはPostgreSQLのJSONBテーブルに保存し、Supabase RealtimeのPostgres Changesで同期します。
+このアプリはSupabase Edge Functionで名前＋パスワード認証を行います。パスワードはPBKDF2でハッシュ化して保存し、平文パスワードやメールアドレスは保存しません。表示名は日本語のままデータベースへ保存します。データ同期はEdge Function経由のポーリングです。
 
 ## GitHub Pages公開
 

@@ -1,33 +1,27 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// Supabase DashboardのProject Settings > APIから置き換えてください。
-const supabaseUrl = 'https://bhbtsufzrsdrmncczxrs.supabase.co';
-const supabaseAnonKey = 'sb_publishable_9qlgluEfKwZgOseIUvFjSA_uQqBpwtF';
-const configured = !supabaseUrl.includes('YOUR_') && !supabaseAnonKey.startsWith('YOUR_');
-const supabase = configured ? createClient(supabaseUrl, supabaseAnonKey) : null;
-let auth = supabase?.auth, db = supabase, user, roomId, roomData, unsubscribers=[];
-if(configured){ supabase.auth.onAuthStateChange((_event,session)=>handleAuth(session?.user||null)); supabase.auth.getSession().then(({data})=>handleAuth(data.session?.user||null)); } else { document.querySelector('#authView').classList.remove('hidden'); }
-
-// Supabaseのroom_store/user_store(JSONB)を既存のRealtime Database風APIとして扱う互換層。
-const pathParts = path => path.split('/').filter(Boolean);
-const rootFor = path => pathParts(path)[0]==='users' ? 'user_store' : 'room_store';
-const keyFor = path => pathParts(path)[0]==='users' ? pathParts(path)[1] : pathParts(path)[1];
-const nestedGet = (obj, parts) => parts.reduce((v,k)=>v==null?undefined:v[k],obj);
-function nestedSet(obj, parts, value){let cur=obj;parts.slice(0,-1).forEach(k=>{if(!cur[k]||typeof cur[k]!=='object')cur[k]={};cur=cur[k]});if(parts.length)cur[parts.at(-1)]=value;}
-function nestedRemove(obj,parts){let cur=obj;parts.slice(0,-1).forEach(k=>cur=cur?.[k]);if(cur&&parts.length)delete cur[parts.at(-1)];}
-function ref(_db,path){return {path};}
+const apiBase = 'https://bhbtsufzrsdrmncczxrs.supabase.co/functions/v1/ui-room-api';
+const configured = !apiBase.includes('YOUR_');
+let user = null, roomId, roomData, unsubscribers=[];
+const savedToken = localStorage.getItem('ui_room_token');
+const auth = {
+  async signUp({name,password,color}){return apiAuth('register',name,password,color)},
+  async signInWithPassword({name,password}){return apiAuth('login',name,password)},
+  async signOut(){localStorage.removeItem('ui_room_token');user=null;handleAuth(null)},
+  async updateUser({data}){if(user){user.user_metadata={...user.user_metadata,...data};await apiWrite(`users/${user.id}`,{name:data.display_name,color:user.color})}}
+};
+async function apiAuth(action,name,password,color){const r=await fetch(`${apiBase}/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,password,color})});const data=await r.json();if(!r.ok)return {error:{code:'auth_error',message:data.error||'認証に失敗しました'}};localStorage.setItem('ui_room_token',data.token);user=data.user;handleAuth(user);return {data};}
+async function apiRequest(method,path,value){const r=await fetch(apiBase,{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${localStorage.getItem('ui_room_token')||''}`},body:JSON.stringify({path,value})});const data=await r.json();if(!r.ok)throw new Error(data.error||'API error');return data.value}
+function pathParts(path){return path.split('/').filter(Boolean)}
+function ref(_db,path){return {path}}
 function serverTimestamp(){return new Date().toISOString()}
-async function readDoc(r){const {data,error}=await supabase.from(r.root).select('data').eq(r.keyCol,r.key).maybeSingle();if(error)throw error;return data?.data||{}}
-async function writeDoc(r,data){const payload={data};payload[r.keyCol]=r.key;const {error}=await supabase.from(r.root).upsert(payload);if(error)throw error}
-function record(path){const ps=pathParts(path);return {path,root:rootFor(path),keyCol:ps[0]==='users'?'user_id':'room_id',key:ps[1]||'__global__',nested:ps.slice(2)}}
-async function get(r){const rr=record(r.path);if(rr.path==='.info/connected')return {val:()=>true,exists:()=>true};const doc=await readDoc(rr);const v=rr.nested.length?nestedGet(doc,rr.nested):doc;return {val:()=>v??null,exists:()=>v!==undefined&&v!==null}}
-async function set(r,value){const rr=record(r.path);const doc=await readDoc(rr);if(rr.nested.length)nestedSet(doc,rr.nested,value);else Object.assign(doc,value||{});await writeDoc(rr,doc)}
-async function update(r,patch){const rr=record(r.path);const doc=await readDoc(rr);if(patch===null){nestedRemove(doc,rr.nested)}else if(rr.nested.length){if(Object.keys(patch||{}).some(k=>k.includes('/'))){for(const [k,v] of Object.entries(patch))nestedSet(doc,[...rr.nested,...k.split('/')],v)}else{const current=nestedGet(doc,rr.nested)||{};nestedSet(doc,rr.nested,{...current,...patch})}}else Object.assign(doc,patch||{});await writeDoc(rr,doc)}
+async function get(r){const value=await apiRequest('GET',r.path);return {val:()=>value??null,exists:()=>value!==undefined&&value!==null}}
+async function set(r,value){await apiRequest('PUT',r.path,value)}
+async function update(r,patch){if(patch===null){await apiRequest('DELETE',r.path);return}const current=(await get(r)).val()||{};await apiRequest('PATCH',r.path,{...current,...patch})}
 async function push(r,value){const key=`${Date.now()}_${Math.random().toString(36).slice(2,8)}`;await set(ref(db,`${r.path}/${key}`),value);return {key}}
-async function remove(r){const rr=record(r.path);const doc=await readDoc(rr);nestedRemove(doc,rr.nested);await writeDoc(rr,doc)}
-function onValue(r,callback){const rr=record(r.path);let stopped=false;const emit=async()=>{if(!stopped)callback(await get(r))};emit();if(rr.path==='.info/connected')return()=>{stopped=true};const channel=supabase.channel(`room-${rr.key}-${Math.random()}`).on('postgres_changes',{event:'*',schema:'public',table:rr.root,filter:`${rr.keyCol}=eq.${rr.key}`},emit).subscribe();return()=>{stopped=true;supabase.removeChannel(channel)}}
-function onChildAdded(r,callback){const seen=new Set();const off=onValue(r,s=>{const value=s.val()||{};Object.entries(value).forEach(([key,v])=>{if(!seen.has(key)){seen.add(key);callback({key,val:()=>v})}})});return off}
-function onDisconnect(){return {set:async()=>{}}}
+async function remove(r){await apiRequest('DELETE',r.path)}
+function onValue(r,callback){let stopped=false;const tick=async()=>{if(!stopped){try{callback(await get(r))}catch(e){}}};tick();const timer=setInterval(tick,1800);return()=>{stopped=true;clearInterval(timer)}}
+function onChildAdded(r,callback){const seen=new Set();return onValue(r,s=>{Object.entries(s.val()||{}).forEach(([key,v])=>{if(!seen.has(key)){seen.add(key);callback({key,val:()=>v})}})})}
+const db={};
+if(savedToken){fetch(`${apiBase}/me`,{headers:{Authorization:`Bearer ${savedToken}`}}).then(r=>r.json()).then(x=>{if(x.user){user=x.user;handleAuth(user)}else{localStorage.removeItem('ui_room_token');handleAuth(null)}}).catch(()=>handleAuth(null));}else{setTimeout(()=>handleAuth(null),0)}
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const state={authMode:'login',tool:'pen',drawing:false,lastPoint:null,settings:{theme:'Liquid Glass',main:'#8d7cff',accent:'#ff6b64',radius:'24px',font:'ゴシック',layout:'2カラムグリッド'},votes:{}};
@@ -50,7 +44,7 @@ function closeModal(){ $('#modalRoot').innerHTML='' }
 
 $$('[data-auth-tab]').forEach(b=>b.onclick=()=>{state.authMode=b.dataset.authTab;$$('[data-auth-tab]').forEach(x=>x.classList.toggle('active',x===b));$('#confirmWrap').classList.toggle('hidden',state.authMode!=='signup');$('#authSubmitText').textContent=state.authMode==='signup'?'アカウントを作る':'ログインする';$('#authPassword').autocomplete=state.authMode==='signup'?'new-password':'current-password'});
 function showAuthMessage(message,ok=false){const e=$('#authError');if(e){e.textContent=message;e.classList.toggle('success',ok)}toast(message)}
-$('#authForm').onsubmit=async e=>{e.preventDefault();const submit=$('#authForm button[type="submit"]');if(submit)submit.disabled=true;showAuthMessage('認証サーバーに接続しています…');if(!configured){showAuthMessage('Supabase設定が未入力です');if(submit)submit.disabled=false;return}const name=$('#authName').value.trim(),pass=$('#authPassword').value;if(name.length<2){showAuthMessage('名前は2文字以上で入力してください');if(submit)submit.disabled=false;return}if(state.authMode==='signup'&&pass!==$('#authConfirm').value){showAuthMessage('パスワードが一致しません');if(submit)submit.disabled=false;return}try{const c=state.authMode==='signup'?await auth.signUp({email:internalEmail(name),password:pass,options:{data:{display_name:name}}}):await auth.signInWithPassword({email:internalEmail(name),password:pass});if(c.error)throw c.error;if(state.authMode==='signup'){if(!c.data.user)throw new Error('SupabaseのEmail確認をオフにしてください。名前はデータベースに日本語のまま保存されます。');user=c.data.user;await auth.updateUser({data:{display_name:name}});await set(ref(db,`users/${c.data.user.id}`),{name,color:avatarColor(name),createdAt:serverTimestamp()});showAuthMessage('アカウントを作成しました',true)} }catch(err){const map={'user_already_exists':'その名前はすでに使われています','invalid_credentials':'名前またはパスワードが違います','weak_password':'パスワードは6文字以上にしてください','email_address_invalid':'アカウント作成に失敗しました。ページを更新して再試行してください','over_email_send_rate_limit':'Supabaseのメール送信制限に達しました。Email確認をオフにしてから再試行してください'};showAuthMessage(map[err.code]||err.message||'登録に失敗しました')}finally{if(submit)submit.disabled=false}};
+$('#authForm').onsubmit=async e=>{e.preventDefault();const submit=$('#authForm button[type="submit"]');if(submit)submit.disabled=true;showAuthMessage('認証サーバーに接続しています…');if(!configured){showAuthMessage('Supabase設定が未入力です');if(submit)submit.disabled=false;return}const name=$('#authName').value.trim(),pass=$('#authPassword').value;if(name.length<2){showAuthMessage('名前は2文字以上で入力してください');if(submit)submit.disabled=false;return}if(state.authMode==='signup'&&pass!==$('#authConfirm').value){showAuthMessage('パスワードが一致しません');if(submit)submit.disabled=false;return}try{const c=state.authMode==='signup'?await auth.signUp({name,password:pass,color:avatarColor(name)}):await auth.signInWithPassword({name,password:pass});if(c.error)throw c.error;if(state.authMode==='signup'){if(!c.data.user)throw new Error('SupabaseのEmail確認をオフにしてください。名前はデータベースに日本語のまま保存されます。');user=c.data.user;await auth.updateUser({data:{display_name:name}});await set(ref(db,`users/${c.data.user.id}`),{name,color:avatarColor(name),createdAt:serverTimestamp()});showAuthMessage('アカウントを作成しました',true)} }catch(err){const map={'user_already_exists':'その名前はすでに使われています','invalid_credentials':'名前またはパスワードが違います','weak_password':'パスワードは6文字以上にしてください','email_address_invalid':'アカウント作成に失敗しました。ページを更新して再試行してください','over_email_send_rate_limit':'Supabaseのメール送信制限に達しました。Email確認をオフにしてから再試行してください'};showAuthMessage(map[err.code]||err.message||'登録に失敗しました')}finally{if(submit)submit.disabled=false}};
 
 function showCreate(){const m=modal('新しいルームを作る','<label>ルーム名<input id="modalRoomName" maxlength="50" placeholder="例：春のブランドサイト"></label>','<button class="secondary-button" data-close>キャンセル</button><button class="primary-button" id="modalSubmit">作成する</button>');m.querySelector('[data-close]').onclick=closeModal;m.querySelector('#modalSubmit').onclick=async()=>{const name=$('#modalRoomName').value.trim();if(!name)return toast('ルーム名を入力してください');const code=makeCode();roomId=code;roomData={name,host:user.id,createdAt:serverTimestamp(),settings:state.settings,members:{[user.id]:{name:(user.user_metadata?.display_name||user.email?.split('@')[0])||'User',color:avatarColor((user.user_metadata?.display_name||user.email?.split('@')[0])),online:true}}};await set(ref(db,`rooms/${code}`),roomData);await joinRoom(code);closeModal()}}
 function showJoin(){const m=modal('招待コードで参加','<label>6桁のコード<input id="modalCode" maxlength="6" placeholder="UX84K2" style="text-transform:uppercase"></label>','<button class="secondary-button" data-close>キャンセル</button><button class="primary-button" id="modalSubmit">参加する</button>');m.querySelector('[data-close]').onclick=closeModal;m.querySelector('#modalSubmit').onclick=async()=>{const code=$('#modalCode').value.trim().toUpperCase();if(!code)return;const snap=await get(ref(db,`rooms/${code}`));if(!snap.exists())return toast('ルームが見つかりません');await joinRoom(code);closeModal()}}
